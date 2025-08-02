@@ -154,6 +154,7 @@ def main():
             for ip in list(DISCONNECTED_DEVICES):
                 mac = input(f"Enter MAC for {ip} to restore: ")
                 restore_device(ip, mac)
+                print("Network restored")
 
         elif choice == '6':
             mac = input("Enter MAC to whitelist: ")
@@ -173,3 +174,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
