@@ -23,5 +23,22 @@
 
 ---
 
+## 📦 Requirements
+
+- Python 3.x
+- Root privileges (Linux/macOS) or Admin (Windows)
+
+### ✅ Installation and Usage
+
+<pre>
+git clone https://github.com/PULSAR-002/netman.git
+cd netman/netman
+pip install -r requirements.txt
+sudo python3 netman.py
+</pre>
+
+
+---
+
 ## 🖼️ Demo Screenshot
 <img width="1913" height="960" alt="Screenshot 2025-08-03 032038" src="https://github.com/user-attachments/assets/a26230de-c5e9-4a39-85fe-01390ccb818c" />
