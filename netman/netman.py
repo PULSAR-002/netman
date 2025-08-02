@@ -1,15 +1,37 @@
 import os
 import time
 import csv
-from scapy.all import ARP, Ether, srp, send
+import socket
+import fcntl
+import struct
+from scapy.all import ARP, Ether, srp, send, conf
 
 WHITELIST = set()
 DISCONNECTED_DEVICES = set()
 GATEWAY_IP = ""
 GATEWAY_MAC = ""
 
+"""
+⚠️ DISCLAIMER:
+This tool is for EDUCATIONAL and ETHICAL purposes only.
+Do not use it on networks you do not own or have explicit permission to test.
+The author is not responsible for any misuse of this tool.
+"""
+
 def get_network_range():
-    return "192.168.1.0/24"
+    iface = conf.iface
+    ip = conf.route.route("0.0.0.0")[1]
+    return ip.rsplit('.', 1)[0] + ".1/24"
+
+def get_gateway_info():
+    gw_ip = conf.route.route("0.0.0.0")[2]
+    arp_req = ARP(pdst=gw_ip)
+    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = ether / arp_req
+    result = srp(packet, timeout=2, verbose=0)[0]
+    for sent, received in result:
+        return gw_ip, received.hwsrc
+    return gw_ip, None
 
 def scan_network():
     print("[+] Scanning network...")
@@ -74,8 +96,13 @@ def main():
 """)
     print("============================\n")
 
-    GATEWAY_IP = input("Enter Gateway IP (e.g. 192.168.1.1): ")
-    GATEWAY_MAC = input("Enter Gateway MAC (e.g. aa:bb:cc:dd:ee:ff): ")
+    GATEWAY_IP, GATEWAY_MAC = get_gateway_info()
+    if not GATEWAY_MAC:
+        print(f"[-] Could not retrieve MAC address for gateway {GATEWAY_IP}. Exiting.")
+        exit()
+
+    print(f"[+] Default Gateway IP: {GATEWAY_IP}")
+    print(f"[+] Default Gateway MAC: {GATEWAY_MAC}")
 
     while True:
         print("\n===== NetMan CLI Menu =====")
