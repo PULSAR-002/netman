@@ -1,19 +1,13 @@
 import os
 import time
 import csv
+import subprocess
 from scapy.all import ARP, Ether, srp, sendp, conf, get_if_hwaddr
 
 WHITELIST = set()
 DISCONNECTED_DEVICES = set()
 GATEWAY_IP = ""
 GATEWAY_MAC = ""
-
-"""
-⚠️ DISCLAIMER:
-This tool is for EDUCATIONAL and ETHICAL purposes only.
-Do not use it on networks you do not own or have explicit permission to test.
-The author is not responsible for any misuse of this tool.
-"""
 
 def get_network_range():
     ip = conf.route.route("0.0.0.0")[1]
@@ -29,15 +23,33 @@ def get_gateway_info():
         return gw_ip, received.hwsrc
     return gw_ip, None
 
+def ping_subnet(subnet="192.168.1.1/24"):
+    base = subnet.rsplit('.', 1)[0]
+    print("[~] Sending pings to wake up devices...")
+    for i in range(1, 255):
+        ip = f"{base}.{i}"
+        subprocess.Popen(["ping", "-c", "1", "-W", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 def scan_network():
     print("[+] Scanning network...")
-    arp = ARP(pdst=get_network_range())
+    subnet = get_network_range()
+    ping_subnet(subnet)
+    time.sleep(2)  # Allow ARP cache to update
+
+    arp = ARP(pdst=subnet)
     ether = Ether(dst="ff:ff:ff:ff:ff:ff")
     packet = ether / arp
     result = srp(packet, timeout=2, verbose=0)[0]
+
     devices = []
+    seen_macs = set()
+
     for _, received in result:
-        devices.append({'ip': received.psrc, 'mac': received.hwsrc})
+        if received.hwsrc not in seen_macs:
+            devices.append({'ip': received.psrc, 'mac': received.hwsrc})
+            seen_macs.add(received.hwsrc)
+
+    devices.sort(key=lambda d: d['ip'])
     return devices
 
 def disconnect_device(ip, mac):
@@ -85,7 +97,7 @@ def main():
         exit()
 
     print("\n============================")
-    print(r"""
+    print(r"""        
 ░▒▓███████▓▒░░▒▓████████▓▒░▒▓████████▓▒░▒▓██████████████▓▒░ ░▒▓██████▓▒░░▒▓███████▓▒░  
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░         ░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
 ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░         ░▒▓█▓▒░   ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░ 
@@ -127,7 +139,7 @@ def main():
         if choice == '1':
             devices = scan_network()
             for idx, device in enumerate(devices):
-                print(f"{idx+1}. IP: {device['ip']}\tMAC: {device['mac']}")
+                print(f"{idx+1}. IP: {device['ip']:<15} MAC: {device['mac']}")
 
         elif choice == '2':
             ip = input("Enter target IP to disconnect: ")
@@ -154,7 +166,7 @@ def main():
             for ip in list(DISCONNECTED_DEVICES):
                 mac = input(f"Enter MAC for {ip} to restore: ")
                 restore_device(ip, mac)
-                print("Network restored")
+            print("[+] Network restored.")
 
         elif choice == '6':
             mac = input("Enter MAC to whitelist: ")
@@ -174,4 +186,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
