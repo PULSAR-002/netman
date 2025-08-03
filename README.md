@@ -26,7 +26,7 @@
 ## 📦 Requirements
 
 - Python 3.x
-- Root privileges (Linux/macOS) or Admin (Windows)
+- Root privileges (Linux/macOS)
 
 ### ✅ Installation and Usage
 
