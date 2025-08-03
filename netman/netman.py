@@ -2,12 +2,24 @@ import os
 import time
 import csv
 import subprocess
+import sys
 from scapy.all import ARP, Ether, srp, sendp, conf, get_if_hwaddr
+
+import ctypes
 
 WHITELIST = set()
 DISCONNECTED_DEVICES = set()
 GATEWAY_IP = ""
 GATEWAY_MAC = ""
+
+def is_admin():
+    if os.name == 'nt':  # Windows
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+    else:  # Unix/Linux
+        return os.geteuid() == 0
 
 def get_network_range():
     ip = conf.route.route("0.0.0.0")[1]
@@ -28,7 +40,10 @@ def ping_subnet(subnet="192.168.1.1/24"):
     print("[~] Sending pings to wake up devices...")
     for i in range(1, 255):
         ip = f"{base}.{i}"
-        subprocess.Popen(["ping", "-c", "1", "-W", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.name == 'nt':  # Windows ping
+            subprocess.Popen(["ping", "-n", "1", "-w", "1000", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:  # Linux/Mac ping
+            subprocess.Popen(["ping", "-c", "1", "-W", "1", ip], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def scan_network():
     print("[+] Scanning network...")
@@ -92,9 +107,9 @@ def save_to_csv(devices, filename="scan_results.csv"):
 def main():
     global GATEWAY_IP, GATEWAY_MAC
 
-    if os.geteuid() != 0:
-        print("[-] Please run this script with sudo/root access.")
-        exit()
+    if not is_admin():
+        print("[-] Please run this script with administrator/root privileges.")
+        sys.exit()
 
     print("\n============================")
     print(r"""        
@@ -119,7 +134,7 @@ def main():
     GATEWAY_IP, GATEWAY_MAC = get_gateway_info()
     if not GATEWAY_MAC:
         print(f"[-] Could not retrieve MAC address for gateway {GATEWAY_IP}. Exiting.")
-        exit()
+        sys.exit()
 
     print(f"[+] Default Gateway IP: {GATEWAY_IP}")
     print(f"[+] Default Gateway MAC: {GATEWAY_MAC}")
